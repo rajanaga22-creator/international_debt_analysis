@@ -906,6 +906,20 @@ def load_metadata():
             mode = series_metadata[column].mode(dropna=True)
             if not mode.empty:
                 series_metadata[column] = series_metadata[column].fillna(mode.iloc[0])
+    for col in country_metadata.columns:
+        non_null_values = country_metadata[col].dropna().astype(str)
+        if non_null_values.empty:
+            continue
+        if non_null_values.str.fullmatch(r"\d+(\.\d+)?", na=False).all():
+            country_metadata[col] = pd.to_numeric(country_metadata[col], errors='coerce')
+            country_metadata[col] = (
+                country_metadata[col]
+                .astype('Int64')
+                .astype(str)
+                .str.replace(r'\.0$', '', regex=True)
+                .replace('<NA>', 'NA')
+            )
+    country_metadata = country_metadata.fillna('NA')
     return country_series, country_metadata, foot_note, series_metadata
 
 
