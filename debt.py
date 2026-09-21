@@ -1616,4 +1616,4 @@ if st is not None:
     st.sidebar.metric("Total debt", f"${selected_total:,.2f}")
 
     # Query section is now kept only on the dedicated Ask Me page.
->>>>>>> 5922f82 (First analysis)
+
