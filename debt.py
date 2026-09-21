@@ -1,17 +1,13 @@
-<<<<<<< HEAD
-import re
-
-import pandas as pd
 import os
+import re
 from typing import Optional, Sequence
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 import plotly.io as pio
-
+import seaborn as sns
 
 try:
     import streamlit as st
@@ -27,6 +23,7 @@ except ModuleNotFoundError:
     create_engine = None
     text = None
 
+# Database connection configuration
 host = 'localhost'
 port = 5432
 database = 'debt_db'
@@ -42,11 +39,11 @@ def get_connection():
 
 connection = get_connection()
 
-  # Replace with your actual password
 # Configure pandas to display full tables
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.width', None)
+
 
 @cache_data
 def load_metadata():
@@ -822,58 +819,6 @@ if st is not None:
     st.sidebar.metric("Total debt", f"${selected_total:,.2f}")
 
     # Query section is now kept only on the dedicated Ask Me page.
-=======
-import re
-
-import pandas as pd
-import os
-from typing import Optional, Sequence
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
-import plotly.io as pio
-
-
-try:
-    import streamlit as st
-except ModuleNotFoundError:
-    st = None
-
-cache_data = st.cache_data if st is not None else lambda function: function
-cache_resource = st.cache_resource if st is not None else lambda function: function
-
-try:
-    from sqlalchemy import create_engine, text
-except ModuleNotFoundError:
-    create_engine = None
-    text = None
-
-host = 'localhost'
-port = 5432
-database = 'debt_db'
-username = 'postgres'
-password = 'nagarajan'
-connection_string = f'postgresql://{username}:{password}@{host}:{port}/{database}'
-
-
-@cache_resource
-def get_connection():
-    return create_engine(connection_string) if create_engine else None
-
-
-connection = get_connection()
-
-  # Replace with your actual password
-# Configure pandas to display full tables
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
-pd.set_option('display.width', None)
-
-@cache_data
-def load_metadata():
     country_series = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\Country-Series - Metadata.csv', encoding='latin-1')
     country_metadata = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_CountryMetaData.csv', encoding='latin-1')
     country_metadata['Latest population census'] = pd.to_numeric(
@@ -923,6 +868,7 @@ def load_metadata():
     return country_series, country_metadata, foot_note, series_metadata
 
 
+# Debt data loading and reshaping
 @cache_data
 def load_all_countries_data():
     source_df = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_ALLCountries_Data.csv', encoding='latin-1')
@@ -967,6 +913,7 @@ def load_all_countries_data():
     return all_countries_data
 
 
+# Load datasets and prepare aggregated chart data
 country_series, country_metadata, foot_note, series_metadata = load_metadata()
 all_countries_data = load_all_countries_data()
 
@@ -987,6 +934,7 @@ country_year_chart_data = (
 )
 
 
+# Country-level visualizations
 def country_trend_figure(data):
     return px.line(
         data.sort_values(['Year', 'Country Name']),
@@ -1114,6 +1062,7 @@ def country_debt_pie_figure(data, top_n=10):
     )
 
 
+# Regional and indicator visualizations
 def region_debt_pie_figure(data):
     required_columns = {'Country Code', 'Value'}
     if data is None or data.empty or not required_columns.issubset(data.columns):
@@ -1292,6 +1241,7 @@ def country_series_figure(data):
     ).update_yaxes(categoryorder='total ascending').update_layout(height=800)
 
 
+# Metadata visualizations
 def country_metadata_figure(data):
     region_counts = (
         data['Region']
@@ -1347,6 +1297,7 @@ def series_metadata_figure(data):
     )
 
 
+# Identifier normalization and lookup tables
 def normalize_country_code(value):
     if pd.isna(value):
         return ''
@@ -1359,6 +1310,7 @@ def normalize_country_code(value):
     return cleaned.replace(' ', '')
 
 
+# Build lookup tables
 country_series_lookup = (
     country_series.assign(CountryCodeNorm=lambda df: df['Country Code'].map(normalize_country_code))
     .rename(columns={'Description': 'Country Series Description'})
@@ -1379,6 +1331,7 @@ footnote_lookup = (
 
 country_metadata_lookup = country_metadata.rename(columns={'Code': 'Country Code'})
 country_metadata_lookup['Country Code'] = country_metadata_lookup['Country Code'].map(normalize_country_code)
+# Persist prepared data to the database when enabled
 if connection is not None and os.getenv('LOAD_DATA_TO_DB', '').lower() == 'true':
     country_series.to_sql('country_series', connection, if_exists='replace', index=False)
     all_countries_data.to_sql('all_countries_data', connection, if_exists='replace', index=False)
@@ -1389,7 +1342,7 @@ if connection is not None and os.getenv('LOAD_DATA_TO_DB', '').lower() == 'true'
 
 
     
-# Streamlit app
+# Streamlit application
 if st is not None:
     st.set_page_config(layout='wide')
     st.markdown(
@@ -1425,6 +1378,7 @@ if st is not None:
         query_levels = ["basic", "medium", "advanced"]
         selected_query_level = st.selectbox("Choose query level", query_levels)
 
+        # Execute the selected database query
         if selected_query_level == "basic":
             query_choices = [
                 "Retrieve all distinct country names from the dataset.",
@@ -1583,6 +1537,7 @@ if st is not None:
         st.dataframe(result_df, use_container_width=True)
         st.stop()
 
+    # Render the selected dashboard dataset
     st.title("Debt Data Analysis")
     dataset = st.selectbox("Select a dataset to view", ["all_countries_data", "country_series", "country_metadata", "foot_note", "series_metadata"])
     if dataset == "all_countries_data":
@@ -1640,6 +1595,7 @@ if st is not None:
         st.plotly_chart(series_metadata_figure(series_metadata), use_container_width=True)
         st.dataframe(series_metadata)
 
+    # Render the sidebar country total
     country_totals = (
         all_countries_data.groupby(['Country Code', 'Country Name'], as_index=False)['Value']
         .sum()
