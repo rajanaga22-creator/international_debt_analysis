@@ -547,327 +547,6 @@ if connection is not None and os.getenv('LOAD_DATA_TO_DB', '').lower() == 'true'
 
 
 
-    
-# Streamlit app
-if st is not None:
-    st.set_page_config(layout='wide')
-    st.markdown(
-        """
-        <style>
-            .stApp h1 {
-                color: #1f77b4;
-                font-weight: 700;
-            }
-            .stApp h2 {
-                color: #ff7f0e;
-                font-weight: 700;
-            }
-            .stApp h3 {
-                color: #2ca02c;
-                font-weight: 700;
-            }
-            .stApp h4 {
-                color: #d62728;
-                font-weight: 700;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    page = st.sidebar.selectbox("Navigation", ["Dashboard", "Ask Me"], index=0)
-
-    if page == "Ask Me":
-        st.title("Ask Me")
-        st.subheader("Database Queries")
-
-        query_levels = ["basic", "medium", "advanced"]
-        selected_query_level = st.selectbox("Choose query level", query_levels)
-
-        if selected_query_level == "basic":
-            query_choices = [
-                "Retrieve all distinct country names from the dataset.",
-                "Count the total number of countries available.",
-                "Find the total number of indicators present.",
-                "Display the first 10 records of the dataset.",
-                "Calculate the total global debt.",
-                "List all unique indicator names.",
-                "Find the number of records for each country.",
-                "Display all records where debt is greater than 1 billion USD.",
-                "Find the minimum, maximum, and average debt values.",
-                "Count total number of records in the dataset."
-            ]
-        elif selected_query_level == "medium":
-            query_choices = [
-                "Find the total debt for each country.",
-                "Display the top 10 countries with the highest total debt.",
-                "Find the average debt per country.",
-                "Calculate total debt for each indicator.",
-                "Identify the indicator contributing the highest total debt.",
-                "Find the country with the lowest total debt.",
-                "Calculate total debt for each country and indicator combination.",
-                "Count how many indicators each country has.",
-                "Display countries whose total debt is above the global average.",
-                "Rank countries based on total debt (highest to lowest)."
-            ]
-        else:
-            query_choices = [
-                "Find the top 5 indicators contributing most to global debt.",
-                "Calculate percentage contribution of each country to total global debt.",
-                "Identify the top 3 countries for each indicator based on debt.",
-                "Find the difference between maximum and minimum debt for each country.",
-                "Create a view for the top 10 countries with highest debt.",
-                "Categorize countries into: High Debt, Medium Debt, Low Debt (based on thresholds)",
-                "Use window functions to calculate cumulative debt per country.",
-                "Find indicators where average debt is higher than overall average debt.",
-                "Identify countries contributing more than 5% of global debt.",
-                "Find the most dominant indicator (highest contribution) for each country."
-            ]
-
-        st.write(f"You selected the {selected_query_level} query group.")
-        selected_query = st.selectbox("Choose a database query", query_choices)
-
-        if selected_query_level == "basic":
-            if selected_query == "Retrieve all distinct country names from the dataset.":
-                result_df = all_countries_data[['Country Name']].drop_duplicates().reset_index(drop=True)
-            elif selected_query == "Count the total number of countries available.":
-                result_df = pd.DataFrame({"total_countries": [all_countries_data['Country Name'].nunique()]})
-            elif selected_query == "Find the total number of indicators present.":
-                result_df = pd.DataFrame({"total_indicators": [country_series['Series Code'].nunique()]})
-            elif selected_query == "Display the first 10 records of the dataset.":
-                result_df = all_countries_data.head(10)
-            elif selected_query == "Calculate the total global debt.":
-                result_df = pd.DataFrame({"total_global_debt": [all_countries_data['Value'].sum()]})
-            elif selected_query == "List all unique indicator names.":
-                result_df = pd.DataFrame({"Indicator Name": series_metadata['Indicator Name'].dropna().drop_duplicates().tolist()})
-            elif selected_query == "Find the number of records for each country.":
-                result_df = all_countries_data.groupby('Country Name').size().reset_index(name='Record count')
-            elif selected_query == "Display all records where debt is greater than 1 billion USD.":
-                result_df = all_countries_data[all_countries_data['Value'] > 1_000_000_000].reset_index(drop=True)
-            elif selected_query == "Find the minimum, maximum, and average debt values.":
-                result_df = pd.DataFrame({
-                    "metric": ["min", "max", "avg"],
-                    "value": [all_countries_data['Value'].min(), all_countries_data['Value'].max(), all_countries_data['Value'].mean()]
-                })
-            else:
-                result_df = pd.DataFrame({"total_records": [len(all_countries_data)]})
-
-        elif selected_query_level == "medium":
-            if selected_query == "Find the total debt for each country.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum()
-            elif selected_query == "Display the top 10 countries with the highest total debt.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum().nlargest(10, 'Value')
-            elif selected_query == "Find the average debt per country.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].mean()
-            elif selected_query == "Calculate total debt for each indicator.":
-                result_df = all_countries_data.groupby('Series Code', as_index=False)['Value'].sum()
-            elif selected_query == "Identify the indicator contributing the highest total debt.":
-                result_df = all_countries_data.groupby('Series Code', as_index=False)['Value'].sum().nlargest(1, 'Value')
-            elif selected_query == "Find the country with the lowest total debt.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum().nsmallest(1, 'Value')
-            elif selected_query == "Calculate total debt for each country and indicator combination.":
-                result_df = all_countries_data.groupby(['Country Name', 'Series Code'], as_index=False)['Value'].sum()
-            elif selected_query == "Count how many indicators each country has.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Series Code'].nunique().rename(columns={'Series Code': 'indicator_count'})
-            elif selected_query == "Display countries whose total debt is above the global average.":
-                global_avg = all_countries_data['Value'].mean()
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum().query(f'Value > {global_avg}')
-            else:
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum().sort_values('Value', ascending=False)
-        else:
-            if selected_query == "Find the top 5 indicators contributing most to global debt.":
-                result_df = all_countries_data.groupby('Series Code', as_index=False)['Value'].sum().nlargest(5, 'Value')
-            elif selected_query == "Calculate percentage contribution of each country to total global debt.":
-                total_global_debt = all_countries_data['Value'].sum()
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum()
-                result_df['percentage_contribution'] = (result_df['Value'] / total_global_debt) * 100
-            elif selected_query == "Identify the top 3 countries for each indicator based on debt.":
-                result_df = (
-                    all_countries_data.groupby(['Series Code', 'Country Name'], as_index=False)['Value']
-                    .sum()
-                    .sort_values(['Series Code', 'Value'], ascending=[True, False])
-                    .groupby('Series Code')
-                    .head(3)
-                )
-            elif selected_query == "Find the difference between maximum and minimum debt for each country.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].agg(['max', 'min']).reset_index()
-                result_df['debt_difference'] = result_df['max'] - result_df['min']
-            elif selected_query == "Create a view for the top 10 countries with highest debt.":
-                result_df = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum().nlargest(10, 'Value')
-            elif selected_query == "Categorize countries into: High Debt, Medium Debt, Low Debt (based on thresholds)":
-                total_debt_per_country = all_countries_data.groupby('Country Name', as_index=False)['Value'].sum()
-                high_threshold = total_debt_per_country['Value'].quantile(0.75)
-                low_threshold = total_debt_per_country['Value'].quantile(0.25)
-
-                def categorize_debt(value):
-                    if value >= high_threshold:
-                        return 'High Debt'
-                    elif value <= low_threshold:
-                        return 'Low Debt'
-                    return 'Medium Debt'
-
-                total_debt_per_country['Debt Category'] = total_debt_per_country['Value'].apply(categorize_debt)
-                result_df = total_debt_per_country
-            elif selected_query == "Use window functions to calculate cumulative debt per country.":
-                result_df = (
-                    all_countries_data.sort_values(['Country Name', 'Year'])
-                    .groupby('Country Name', as_index=False)
-                    .apply(lambda x: x.assign(cumulative_debt=x['Value'].cumsum()))
-                    .reset_index(drop=True)
-                )
-            elif selected_query == "Find indicators where average debt is higher than overall average debt.":
-                overall_avg_debt = all_countries_data['Value'].mean()
-                result_df = (
-                    all_countries_data.groupby('Series Code', as_index=False)['Value']
-                    .mean()
-                    .query(f'Value > {overall_avg_debt}')
-                )
-            elif selected_query == "Identify countries contributing more than 5% of global debt.":
-                total_global_debt = all_countries_data['Value'].sum()
-                result_df = (
-                    all_countries_data.groupby('Country Name', as_index=False)['Value']
-                    .sum()
-                    .query(f'Value > {0.05 * total_global_debt}')
-                )
-            else:
-                result_df = (
-                    all_countries_data.groupby(['Country Name', 'Series Code'], as_index=False)['Value']
-                    .sum()
-                    .sort_values(['Country Name', 'Value'], ascending=[True, False])
-                    .groupby('Country Name')
-                    .head(1)
-                )
-
-        st.subheader("Query Result")
-        st.dataframe(result_df, use_container_width=True)
-        st.stop()
-
-    st.title("Debt Data Analysis")
-    dataset = st.selectbox("Select a dataset to view", ["all_countries_data", "country_series", "country_metadata", "foot_note", "series_metadata"])
-    if dataset == "all_countries_data":
-        st.header("All Countries Data")
-
-        st.plotly_chart(country_debt_pie_figure(country_year_chart_data), use_container_width=True)
-        st.plotly_chart(country_trend_figure(country_year_chart_data), width='stretch')
-        st.plotly_chart(latest_country_map_figure(country_year_chart_data), use_container_width=True)
-        st.plotly_chart(country_totals_figure(country_year_chart_data), use_container_width=True)
-        st.plotly_chart(indicator_count_vs_debt_figure(all_countries_data), use_container_width=True)
-        st.plotly_chart(country_ranked_debt_figure(country_year_chart_data, highest=True), use_container_width=True)
-        st.plotly_chart(country_ranked_debt_figure(country_year_chart_data, highest=False), use_container_width=True)
-        st.plotly_chart(region_trend_figure(all_countries_data), use_container_width=True)
-
-        country_options = (
-            all_countries_data[['Country Code', 'Country Name']]
-            .drop_duplicates()
-            .sort_values(['Country Name', 'Country Code'])
-        )
-        country_options['display_label'] = country_options['Country Name'].fillna(country_options['Country Code'])
-        country_labels = country_options['display_label'].tolist()
-        selected_country_label = st.selectbox("Select a country", country_labels)
-
-        selected_country_code = country_options.loc[country_options['display_label'] == selected_country_label, 'Country Code'].iloc[0]
-        filtered_data = all_countries_data[all_countries_data['Country Code'] == selected_country_code]
-        st.dataframe(filtered_data)
-
-        if not filtered_data.empty:
-            st.bar_chart(
-                filtered_data.set_index('Year')['Value'],
-                use_container_width=True
-            )
-
-        st.plotly_chart(debt_indicator_figure(all_countries_data), use_container_width=True)
-        st.plotly_chart(region_debt_pie_figure(all_countries_data), use_container_width=True)
-        st.plotly_chart(region_country_treemap_figure(all_countries_data), use_container_width=True)
-
-    if dataset == "country_series":
-        st.header("Country Series")
-        st.plotly_chart(country_series_figure(country_series), use_container_width=True)
-        st.dataframe(country_series)
-
-    if dataset == "country_metadata":
-        st.header("Country Metadata")
-        st.plotly_chart(country_metadata_figure(country_metadata), use_container_width=True)
-        st.dataframe(country_metadata)
-
-    if dataset == "foot_note":
-        st.header("Foot Note")
-        st.plotly_chart(footnote_figure(foot_note), use_container_width=True)
-        st.dataframe(foot_note)
-
-    if dataset == "series_metadata":
-        st.header("Series Metadata")
-        st.plotly_chart(series_metadata_figure(series_metadata), use_container_width=True)
-        st.dataframe(series_metadata)
-
-    country_totals = (
-        all_countries_data.groupby(['Country Code', 'Country Name'], as_index=False)['Value']
-        .sum()
-        .sort_values(['Country Name', 'Country Code'])
-    )
-    country_totals['display_label'] = (
-        country_totals['Country Name'].fillna(country_totals['Country Code'])
-        + ' (' + country_totals['Country Code'] + ')'
-    )
-    st.sidebar.header("Country Name")
-    selected_country = st.sidebar.selectbox(
-        "Select a country to view total debt",
-        country_totals['display_label'].tolist(),
-    )
-    selected_total = country_totals.loc[
-        country_totals['display_label'] == selected_country, 'Value'
-    ].iloc[0]
-    st.sidebar.metric("Total debt", f"${selected_total:,.2f}")
-
-    # Query section is now kept only on the dedicated Ask Me page.
-    country_series = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\Country-Series - Metadata.csv', encoding='latin-1')
-    country_metadata = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_CountryMetaData.csv', encoding='latin-1')
-    country_metadata['Latest population census'] = pd.to_numeric(
-        country_metadata['Latest population census'], errors='coerce'
-    )
-    country_metadata.loc[106, 'Latest population census'] = 1987
-    country_metadata['Region'] = country_metadata['Region'].fillna(country_metadata['Long Name'])
-    income_group_mode = country_metadata['Income Group'].mode(dropna=True)
-    if not income_group_mode.empty:
-        country_metadata['Income Group'] = country_metadata['Income Group'].fillna(income_group_mode.iloc[0])
-    currency_unit_mode = country_metadata['Currency Unit'].mode(dropna=True)
-    if not currency_unit_mode.empty:
-        country_metadata['Currency Unit'] = country_metadata['Currency Unit'].fillna(currency_unit_mode.iloc[0])
-    foot_note = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_FootNoteMetaData.csv', encoding='latin-1')
-    series_metadata = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_SeriesMetaData.csv', encoding='latin-1')
-    series_metadata = series_metadata.dropna(how='all').copy()
-    series_metadata = series_metadata.drop(
-        columns=[
-            col for col in [
-                'License Type',
-                'Limitations and exceptions',
-                'General comments'
-            ]
-            if col in series_metadata.columns
-        ],
-        errors='ignore'
-    )
-    for column in ['Short definition', 'Dataset']:
-        if column in series_metadata.columns:
-            mode = series_metadata[column].mode(dropna=True)
-            if not mode.empty:
-                series_metadata[column] = series_metadata[column].fillna(mode.iloc[0])
-    for col in country_metadata.columns:
-        non_null_values = country_metadata[col].dropna().astype(str)
-        if non_null_values.empty:
-            continue
-        if non_null_values.str.fullmatch(r"\d+(\.\d+)?", na=False).all():
-            country_metadata[col] = pd.to_numeric(country_metadata[col], errors='coerce')
-            country_metadata[col] = (
-                country_metadata[col]
-                .astype('Int64')
-                .astype(str)
-                .str.replace(r'\.0$', '', regex=True)
-                .replace('<NA>', 'NA')
-            )
-    country_metadata = country_metadata.fillna('NA')
-    return country_series, country_metadata, foot_note, series_metadata
-
-
 # Debt data loading and reshaping
 @cache_data
 def load_all_countries_data():
@@ -1342,7 +1021,7 @@ if connection is not None and os.getenv('LOAD_DATA_TO_DB', '').lower() == 'true'
 
 
     
-# Streamlit application
+# Streamlit app
 if st is not None:
     st.set_page_config(layout='wide')
     st.markdown(
@@ -1369,16 +1048,15 @@ if st is not None:
         unsafe_allow_html=True,
     )
 
-    page = st.sidebar.selectbox("Navigation", ["Dashboard", "Ask Me"], index=0)
+    page = st.sidebar.selectbox("Navigation", ["Dashboard", "Ask Me"], index=0, key="navigation_page")
 
     if page == "Ask Me":
         st.title("Ask Me")
         st.subheader("Database Queries")
 
         query_levels = ["basic", "medium", "advanced"]
-        selected_query_level = st.selectbox("Choose query level", query_levels)
+        selected_query_level = st.selectbox("Choose query level", query_levels, key="query_level_ask")
 
-        # Execute the selected database query
         if selected_query_level == "basic":
             query_choices = [
                 "Retrieve all distinct country names from the dataset.",
@@ -1420,7 +1098,7 @@ if st is not None:
             ]
 
         st.write(f"You selected the {selected_query_level} query group.")
-        selected_query = st.selectbox("Choose a database query", query_choices)
+        selected_query = st.selectbox("Choose a database query", query_choices, key="query_choice_ask")
 
         if selected_query_level == "basic":
             if selected_query == "Retrieve all distinct country names from the dataset.":
@@ -1539,7 +1217,7 @@ if st is not None:
 
     # Render the selected dashboard dataset
     st.title("Debt Data Analysis")
-    dataset = st.selectbox("Select a dataset to view", ["all_countries_data", "country_series", "country_metadata", "foot_note", "series_metadata"])
+    dataset = st.selectbox("Select a dataset to view", ["all_countries_data", "country_series", "country_metadata", "foot_note", "series_metadata"], key="dashboard_dataset_ask")
     if dataset == "all_countries_data":
         st.header("All Countries Data")
 
@@ -1559,7 +1237,7 @@ if st is not None:
         )
         country_options['display_label'] = country_options['Country Name'].fillna(country_options['Country Code'])
         country_labels = country_options['display_label'].tolist()
-        selected_country_label = st.selectbox("Select a country", country_labels)
+        selected_country_label = st.selectbox("Select a country", country_labels, key="country_label_ask")
 
         selected_country_code = country_options.loc[country_options['display_label'] == selected_country_label, 'Country Code'].iloc[0]
         filtered_data = all_countries_data[all_countries_data['Country Code'] == selected_country_code]
@@ -1609,6 +1287,7 @@ if st is not None:
     selected_country = st.sidebar.selectbox(
         "Select a country to view total debt",
         country_totals['display_label'].tolist(),
+        key="country_total_sidebar_ask",
     )
     selected_total = country_totals.loc[
         country_totals['display_label'] == selected_country, 'Value'
