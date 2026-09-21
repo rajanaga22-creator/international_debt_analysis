@@ -60,6 +60,7 @@ def load_metadata():
     currency_unit_mode = country_metadata['Currency Unit'].mode(dropna=True)
     if not currency_unit_mode.empty:
         country_metadata['Currency Unit'] = country_metadata['Currency Unit'].fillna(currency_unit_mode.iloc[0])
+    country_metadata = country_metadata.fillna('NA')
     foot_note = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_FootNoteMetaData.csv', encoding='latin-1')
     series_metadata = pd.read_csv(r'C:\Users\rajanaga22\mini_pro_two\IDS_SeriesMetaData.csv', encoding='latin-1')
     series_metadata = series_metadata.dropna(how='all').copy()
